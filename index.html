@@ -31,7 +31,7 @@
   .bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px 14px calc(env(safe-area-inset-bottom) + 10px);background:rgba(244,246,250,.95);border-top:1px solid var(--line)}
   .bar button{flex:1;font-size:15px;padding:12px;border:0;border-radius:12px;background:#e3e7ee;color:var(--text)}
   .bar button.primary{background:var(--accent);color:#fff}
-  .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 80px);transform:translateX(-50%) translateY(-10px);background:var(--ok);color:#fff;padding:12px 18px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:.2s;max-width:90%;text-align:center}
+  .toast{position:fixed;z-index:100;left:50%;bottom:calc(env(safe-area-inset-bottom) + 80px);transform:translateX(-50%) translateY(10px);background:var(--ok);color:#fff;padding:14px 20px;border-radius:12px;font-size:16px;opacity:0;pointer-events:none;transition:.2s;max-width:90%;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.25)}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .item.copied{background:#e8f7ee;border-color:#b7e4c7}
   dialog{border:0;border-radius:16px;padding:18px;width:min(92vw,420px)}

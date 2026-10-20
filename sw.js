@@ -1,4 +1,4 @@
-const CACHE = "supplier-search-v1";
+const CACHE = "supplier-search-v2";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 
 self.addEventListener("install", e => {
