@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="업체검색">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>업체명 검색</title>
+<style>
+  :root{--bg:#f4f6fa;--card:#fff;--text:#1b1f27;--sub:#6b7280;--accent:#1f6feb;--line:#e5e8ee;--ok:#16a34a}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+  .top{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 12px) 14px 10px}
+  .search{display:flex;gap:8px}
+  .search input{flex:1;font-size:18px;padding:14px 14px;border:2px solid var(--line);border-radius:14px;background:#fff;outline:none}
+  .search input:focus{border-color:var(--accent)}
+  .clear{border:0;background:#e3e7ee;border-radius:14px;padding:0 16px;font-size:16px;color:var(--sub)}
+  .count{margin:8px 4px 0;font-size:13px;color:var(--sub)}
+  .list{padding:4px 14px calc(env(safe-area-inset-bottom) + 90px)}
+  .item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;margin-bottom:10px;font-size:17px;line-height:1.35;word-break:keep-all;cursor:pointer;user-select:none}
+  .item:active{background:#eef4ff}
+  .item .name{flex:1}
+  .item .del{border:0;background:none;color:#b0b6c2;font-size:20px;padding:4px 8px;display:none}
+  body.edit .item .del{display:block}
+  .empty{text-align:center;color:var(--sub);padding:40px 0}
+  .bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px 14px calc(env(safe-area-inset-bottom) + 10px);background:rgba(244,246,250,.95);border-top:1px solid var(--line)}
+  .bar button{flex:1;font-size:15px;padding:12px;border:0;border-radius:12px;background:#e3e7ee;color:var(--text)}
+  .bar button.primary{background:var(--accent);color:#fff}
+  .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 80px);transform:translateX(-50%) translateY(-10px);background:var(--ok);color:#fff;padding:12px 18px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:.2s;max-width:90%;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .item.copied{background:#e8f7ee;border-color:#b7e4c7}
+  dialog{border:0;border-radius:16px;padding:18px;width:min(92vw,420px)}
+  dialog::backdrop{background:rgba(0,0,0,.35)}
+  dialog textarea,dialog input{width:100%;font-size:16px;padding:12px;border:2px solid var(--line);border-radius:12px;font-family:inherit}
+  dialog .row{display:flex;gap:8px;margin-top:12px}
+  dialog .row button{flex:1;padding:12px;border:0;border-radius:12px;font-size:15px;background:#e3e7ee}
+  dialog .row button.primary{background:var(--accent);color:#fff}
+  dialog p{margin:0 0 10px;font-size:13px;color:var(--sub)}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="search">
+    <input id="q" type="search" placeholder="업체명 검색 (초성도 가능: ㅅㅇㅇ)" autocomplete="off" autocapitalize="off" enterkeyhint="search">
+    <button class="clear" id="clear">지우기</button>
+  </div>
+  <div class="count" id="count"></div>
+</div>
+<div class="list" id="list"></div>
+
+<div class="bar">
+  <button id="add">+ 업체 추가</button>
+  <button id="edit">삭제 모드</button>
+  <button id="bulk">일괄 편집</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<dialog id="dlgAdd">
+  <p>추가할 업체명을 입력하세요 (여러 개는 한 줄에 하나씩)</p>
+  <textarea id="addText" rows="4"></textarea>
+  <div class="row"><button id="addCancel">취소</button><button class="primary" id="addOk">추가</button></div>
+</dialog>
+
+<dialog id="dlgBulk">
+  <p>전체 목록입니다. 한 줄에 업체 하나. 수정 후 저장하세요.</p>
+  <textarea id="bulkText" rows="14"></textarea>
+  <div class="row"><button id="bulkReset">처음 목록으로</button><button id="bulkCancel">취소</button><button class="primary" id="bulkOk">저장</button></div>
+</dialog>
+
+<script>
+const DEFAULT_LIST = [
+  "주일상사",
+  "(주)용신과일나라",
+  "(유)돌코리아 Dole korea",
+  "(주)빙그레",
+  "TAMSAA_금성농산영농조합법인(CPLB)",
+  "TAMSAA_주식회사 쉬앤코(CPLB)",
+  "TAMSAA_농업회사법인 주식회사 그린트리플러스(CPLB)",
+  "TAMSAA_농업회사법인 주식회사 송이애(CPLB)",
+  "농가식품",
+  "다정다감푸드 농업회사법인 주식회사",
+  "TAMSAA_다올영농조합법인(CPLB)",
+  "(주)크레용아이",
+  "TAMSAA_청운친환경영농조합법인(CPLB)",
+  "TAMSAA_주식회사 시골장터(CPLB)",
+  "TAMSAA_농업회사법인(주)서산아그로(CPLB)"
+];
+const KEY = "supplierList.v1";
+let list = load();
+
+function load(){
+  try{ const s = localStorage.getItem(KEY); if(s){ const a = JSON.parse(s); if(Array.isArray(a)) return a; } }catch(e){}
+  return DEFAULT_LIST.slice();
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(list)); }catch(e){} }
+
+// 초성 검색
+const CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+function chosung(s){
+  let r = "";
+  for(const ch of s){
+    const c = ch.charCodeAt(0);
+    if(c >= 0xAC00 && c <= 0xD7A3) r += CHO[Math.floor((c - 0xAC00) / 588)];
+    else r += ch;
+  }
+  return r;
+}
+const norm = s => s.toLowerCase().replace(/\s+/g, "");
+
+const $ = id => document.getElementById(id);
+const listEl = $("list"), qEl = $("q");
+
+function render(){
+  const q = norm(qEl.value.trim());
+  const isCho = q && /^[ㄱ-ㅎ]+$/.test(q);
+  const rows = list.map((name,i)=>({name,i})).filter(({name})=>{
+    if(!q) return true;
+    const n = norm(name);
+    if(n.includes(q)) return true;
+    if(isCho && chosung(n).includes(q)) return true;
+    return false;
+  });
+  $("count").textContent = q ? `검색 결과 ${rows.length}개 / 전체 ${list.length}개` : `전체 ${list.length}개 · 누르면 복사됩니다`;
+  listEl.innerHTML = "";
+  if(!rows.length){ listEl.innerHTML = '<div class="empty">검색 결과가 없습니다</div>'; return; }
+  for(const {name,i} of rows){
+    const d = document.createElement("div");
+    d.className = "item";
+    const span = document.createElement("span");
+    span.className = "name"; span.textContent = name;
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "✕"; del.setAttribute("aria-label","삭제");
+    del.addEventListener("click", e=>{
+      e.stopPropagation();
+      if(confirm(`"${name}" 삭제할까요?`)){ list.splice(i,1); save(); render(); }
+    });
+    d.append(span, del);
+    d.addEventListener("click", ()=>copy(name, d));
+    listEl.appendChild(d);
+  }
+}
+
+async function copy(text, el){
+  let ok = false;
+  try{ await navigator.clipboard.writeText(text); ok = true; }
+  catch(e){
+    const t = document.createElement("textarea");
+    t.value = text; t.style.position="fixed"; t.style.opacity="0";
+    document.body.appendChild(t); t.select(); t.setSelectionRange(0, 99999);
+    try{ ok = document.execCommand("copy"); }catch(_){}
+    t.remove();
+  }
+  toast(ok ? "복사됨: " + text : "복사 실패 – 다시 눌러주세요", ok);
+  if(ok && el){ el.classList.add("copied"); setTimeout(()=>el.classList.remove("copied"), 700); }
+}
+let tt;
+function toast(msg, ok=true){
+  const t = $("toast"); t.textContent = msg; t.style.background = ok ? "var(--ok)" : "#dc2626";
+  t.classList.add("show"); clearTimeout(tt); tt = setTimeout(()=>t.classList.remove("show"), 1500);
+}
+
+qEl.addEventListener("input", render);
+$("clear").addEventListener("click", ()=>{ qEl.value=""; render(); qEl.focus(); });
+$("edit").addEventListener("click", ()=>{
+  document.body.classList.toggle("edit");
+  $("edit").textContent = document.body.classList.contains("edit") ? "삭제 모드 끄기" : "삭제 모드";
+});
+
+$("add").addEventListener("click", ()=>{ $("addText").value=""; $("dlgAdd").showModal(); });
+$("addCancel").addEventListener("click", ()=>$("dlgAdd").close());
+$("addOk").addEventListener("click", ()=>{
+  const lines = $("addText").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  let n = 0;
+  for(const l of lines){ if(!list.includes(l)){ list.push(l); n++; } }
+  save(); render(); $("dlgAdd").close(); toast(`${n}개 추가됨`);
+});
+
+$("bulk").addEventListener("click", ()=>{ $("bulkText").value = list.join("\n"); $("dlgBulk").showModal(); });
+$("bulkCancel").addEventListener("click", ()=>$("dlgBulk").close());
+$("bulkOk").addEventListener("click", ()=>{
+  list = $("bulkText").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  save(); render(); $("dlgBulk").close(); toast("저장됨");
+});
+$("bulkReset").addEventListener("click", ()=>{
+  if(confirm("처음 목록으로 되돌릴까요? (추가한 업체는 사라집니다)")) $("bulkText").value = DEFAULT_LIST.join("\n");
+});
+
+render();
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+</script>
+</body>
+</html>
